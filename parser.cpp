@@ -1,71 +1,91 @@
+
 #include "parser.h"
+#include "ls_classifier.h"
 
-DataParser::DataParser () {
-	
-	string dir ("data/");
-	
-	while(1){
-		cout << "\nDatasets you can choose:\n";	
-		system("ls data");
 
-		cout << "\nEnter dataset filename: ";
-		cin >> filename;
-		filename = dir+filename;
-		cout << "You chose datafile: " << filename << endl;
-		
-		filestream.open(filename);
-		if (filestream.is_open()){
-			filestream.close();
-			break;
-		}	
-		cout << "Unable to open file\n";
-	}
+Data::Data(string dat) : datafile(dat) {
 
+	set_param();
 }
 
-
-string DataParser::read_line(int line_num){
+void Data::set_param(){
 	
 	string line;
-	int n = 0;
-	filestream.open(filename);
+	ifstream filestream;
+
+	filestream.open(datafile.c_str());
+	
+	int n_obj = 0;
+
 	if (filestream.is_open()){
 		while (getline(filestream,line)){
-			if(line_num == n){
-				break;
-			}	
-			n++;
+
+			frowvec feature_vec(line);
+
+			if(find(classes.begin(), classes.end(), feature_vec(0)) == classes.end()){
+				classes.push_back(feature_vec(0));
+			}
+
+			if(n_obj%2==0) train_mat.insert_rows(train_mat.n_rows,feature_vec);
+
+			else test_mat.insert_rows(test_mat.n_rows,feature_vec);
+
+			n_obj++;
+			
 		}
 		filestream.close();
 	}
+
 	else cout << "Unable to open file\n";
-	cout<<n<<endl;
-
-	return line;
-}
-
-fvec DataParser::get_row_vec(){
-
-	string temp = read_line(4);
-	fvec row_vec(temp);
-	row_vec.shed_row(0);
-	row_vec.print();
-	row_vec.save("test.txt");
-	return row_vec;
-}
-
-int main(){
 	
-	DataParser test;
-	string lol = test.read_line(4);
-	test.get_row_vec();
-	cout << lol << endl;
-	fvec test2;
-	test2.load("test.txt");
-	test2.print();
-	
-	return 0;	
+	find_feat_combo();
+
 }
 
+void Data::find_feat_combo(){
+	
+	int n = train_mat.n_cols-1;
 
+	for(int i = 0; i<n; ++i){
+		a.push_back(i+1);
+	}
 
+	for (int i=0; i<n; ++i){
+		go(0,i+1);
+	}
+	
+}
+
+void Data::go(int offset, int k){
+	
+	if(k==0){
+		combinations.push_back(c);
+		return;
+	}
+
+	for (int i=offset; i<=a.size()-k; ++i){
+		c.push_back(a[i]);
+		go(i+1,k-1);
+		c.pop_back();
+	}
+}
+
+fmat Data::get_train_mat(){
+	return train_mat;
+}
+
+fmat Data::get_test_mat(){
+	return test_mat;
+}
+
+void Data::set_train_mat(fmat new_train_mat){
+	train_mat = new_train_mat;
+}
+
+void Data::set_test_mat(fmat new_test_mat){
+	test_mat = new_test_mat;
+}
+
+vector<vector<int>> Data::get_comb(){
+	return combinations;
+}
